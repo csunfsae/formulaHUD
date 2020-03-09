@@ -23,63 +23,80 @@
 #define YELLOW          0xFFE0
 #define WHITE           0xFFFF
 
-// adafruit object
+/* Screen Dimension */
+// 96×64 
+
+/* ADAFRUIT OBJECT */
 Adafruit_SSD1331 display = Adafruit_SSD1331(cs, dc, rst);
 
-// values
+/* DATA */
+int batteryLife;
 int batteryTemperature;
-int batteryLife = 0;
 
-//// for reading
+/* FOR READING DATA  */
+// time
 unsigned long lastTime = 0;
-
-bool isReading = false;
-String currentMessage = "";
-
 unsigned long watchdog = 0;
+// booleans
+bool lifeReading = false;
+bool tempReading = false;
+// messages
+String lifeMessage = "";
+String tempMessage = "";
 
-////////////////////////////
+/*START CODE */
 void setup() {
   // display instance
   display.begin();
-
-  Serial.begin(9600);
-
+  // Serial BAUD
+  Serial.begin(115200);
 }
 
-// <123>
+/* SEND DATA IN THE FORM OF
+  < BatteryLife , BatteryTemperature >
+  < 32 , 55 >
+*/
 
 void loop()
 {
-  if (isReading) {
+  if (lifeReading) { // Start Reading Battery Life
     int c = Serial.read();
-    if (c == '>') {
-      isReading = false;
-      batteryTemperature = currentMessage.toInt();
-      Serial.println(batteryTemperature);
+    if (c == ',') { // stop reading battery life at ','
+      lifeReading = false;
+      tempReading = true; // Set tempReading to true to start reading Temp
+      Serial.println("in blife " + lifeMessage);
+      batteryLife = lifeMessage.toInt();
       watchdog = millis();
     } else {
-      currentMessage = currentMessage + char(c);
-      Serial.println(currentMessage); 
+      lifeMessage = lifeMessage + (char) c;
     }
-  } else {
+  } else if (tempReading) { // Start Reading Battery Temperature
+    int c = Serial.read();
+    if (c == '>') { // stop reading battery temp at '>'
+      tempReading = false;
+      Serial.println("in btemp " + tempMessage);
+      batteryTemperature = tempMessage.toInt();
+      watchdog = millis();
+    } else {
+      tempMessage = tempMessage + (char) c;
+    }
+  } else { // Read Data
     int c = Serial.read();
     if (c >= 0) { // will be less then 0 if nothing
-      if (c == '<') {
-        isReading = true;
-        currentMessage = "";
+      if (c == '<') { // start reading
+        lifeReading = true;
+        lifeMessage = "";
+        tempMessage = "";
       }
     }
   }
-
   auto current = millis();
-
-
+  // checks if data is not being sent
+  // display warning if there is no data NEW for 5 seconds
   if (current - watchdog > 5000) {
     // Display not connected message on screen
-    display.fillScreen(YELLOW);
-  }
-  else {
+    displayWarning();
+  } else {
     if (current - lastTime > 1000) {
       lastTime = current;
       // Update screen
@@ -90,18 +107,19 @@ void loop()
       }
     }
   }
-
-
+  delay(1);
 }
 
 void showBatteryTemperature() {
   display.fillScreen(RED);
   display.setCursor(20, 5);
   display.setTextColor(WHITE);
-  display.print("Temp");
-  display.setCursor(38, 25);
-  display.setTextColor(WHITE);
   display.setTextSize(2);
+  display.print("Temp");
+  
+  display.setCursor(38, 25);
+  display.setTextColor(BLACK);
+  display.setTextSize(3);
   display.print(batteryTemperature);
 }
 
@@ -109,9 +127,15 @@ void showBatteryLife() {
   display.fillScreen(GREEN);
   display.setCursor(20, 5);
   display.setTextColor(WHITE);
-  display.print("Life");
-  display.setCursor(38, 25);
-  display.setTextColor(WHITE);
   display.setTextSize(2);
+  display.print("Life");
+  
+  display.setCursor(35, 25);
+  display.setTextColor(BLACK);
+  display.setTextSize(3);
   display.print(batteryLife);
+}
+
+void displayWarning() {
+  display.fillScreen(YELLOW);
 }
