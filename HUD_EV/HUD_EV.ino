@@ -1,5 +1,5 @@
-#include <mcp_can.h>
 #include <mcp_can_dfs.h>
+#include <mcp_can.h>
 
 #include <Adafruit_SSD1331.h>
 #include <Adafruit_GFX.h>
@@ -7,7 +7,7 @@
 #include <Adafruit_SPITFT_Macros.h>
 #include <gfxfont.h>
 
-//declare pins 
+//declare pins
 #define sclk 13
 #define mosi 11
 #define cs   10
@@ -20,34 +20,78 @@
 #define GREEN           0x07E0
 #define CYAN            0x07FF
 #define MAGENTA         0xF81F
-#define YELLOW          0xFFE0  
+#define YELLOW          0xFFE0
 #define WHITE           0xFFFF
 
-// adafruit object 
+// adafruit object
 Adafruit_SSD1331 display = Adafruit_SSD1331(cs, dc, rst);
 
-// 
-int batteryTemperature = 0;
-int batteryLife = 90; 
+// values
+int batteryTemperature;
+int batteryLife = 0;
 
+//// for reading
+unsigned long lastTime = 0;
+
+bool isReading = false;
+String currentMessage = "";
+
+unsigned long watchdog = 0;
+
+////////////////////////////
 void setup() {
   // display instance
   display.begin();
-  // set up
-  display.fillScreen(BLACK);
-  delay(300);
+
+  Serial.begin(9600);
+
 }
-void loop() 
+
+// <123>
+
+void loop()
 {
-  batteryTemperature = random() % 100; 
-  batteryLife = random() % 50;
-  if (batteryTemperature >= 55) {
-    showBatteryTemperature();
+  if (isReading) {
+    int c = Serial.read();
+    if (c == '>') {
+      isReading = false;
+      batteryTemperature = currentMessage.toInt();
+      Serial.println(batteryTemperature);
+      watchdog = millis();
+    } else {
+      currentMessage = currentMessage + char(c);
+      Serial.println(currentMessage); 
+    }
   } else {
-    showBatteryLife(); 
+    int c = Serial.read();
+    if (c >= 0) { // will be less then 0 if nothing
+      if (c == '<') {
+        isReading = true;
+        currentMessage = "";
+      }
+    }
   }
-  delay(1000);
- 
+
+  auto current = millis();
+
+
+  if (current - watchdog > 5000) {
+    // Display not connected message on screen
+    display.fillScreen(YELLOW);
+  }
+  else {
+    if (current - lastTime > 1000) {
+      lastTime = current;
+      // Update screen
+      if (batteryTemperature >= 55) {
+        showBatteryTemperature();
+      } else {
+        showBatteryLife();
+      }
+    }
+  }
+
+
 }
 
 void showBatteryTemperature() {
@@ -69,5 +113,5 @@ void showBatteryLife() {
   display.setCursor(38, 25);
   display.setTextColor(WHITE);
   display.setTextSize(2);
-  display.print(batteryLife);  
+  display.print(batteryLife);
 }

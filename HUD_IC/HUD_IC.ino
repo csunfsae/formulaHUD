@@ -32,6 +32,7 @@ int rpm = 0;
 void setup() {
   // put your setup code here, to run once:
   display.begin();
+  Serial.begin(9600); 
   display.fillScreen(BLACK);
   delay(300); 
   
@@ -41,11 +42,15 @@ void loop() {
   // put your main code here, to run repeatedly:
   rpm = random() % 4000;
   setRPM();
+  display.setCursor(20, 5);
+  display.setTextColor(BLACK); 
+  display.print("Gear"); 
   display.setCursor(38, 25);
   display.setTextColor(BLACK);
-  display.setTextSize(3);
+  display.setTextSize(2);
   display.print(gear);
   Serial.print(rpm);
+  Serial.print("\t");
   delay(1000);
 }
 
